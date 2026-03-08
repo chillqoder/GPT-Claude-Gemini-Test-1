@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>THE PROMPT</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: #0f0;
+            font-family: 'Fira Code', monospace;
+            user-select: none;
+            cursor: none;
+        }
+
+        /* CRT Effects */
+        body::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            filter: contrast(1.2) brightness(1.1);
+        }
+
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.85);
+            transition: opacity 0.3s;
+        }
+
+        #ui.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-size: 4rem;
+            margin: 0;
+            text-shadow: 0 0 10px #0f0, 2px 2px 0px #f00, -2px -2px 0px #00f;
+            letter-spacing: 2px;
+        }
+
+        p {
+            font-size: 1.5rem;
+            text-shadow: 0 0 5px #0f0;
+            margin-bottom: 5px;
+        }
+
+        .controls {
+            font-size: 1.1rem;
+            color: #888;
+            margin-top: 30px;
+            max-width: 600px;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .highlight {
+            color: #0f0;
+        }
+
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            z-index: 5;
+            display: none;
+            width: calc(100% - 40px);
+        }
+
+        #hud.visible {
+            display: block;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .score-container {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #0f0;
+            text-shadow: 0 0 5px #0f0;
+        }
+
+        .coherence-container {
+            font-size: 1.5rem;
+            color: #0f0;
+            text-align: right;
+        }
+
+        #coherenceBar {
+            width: 200px;
+            height: 20px;
+            border: 2px solid #0f0;
+            margin-top: 5px;
+            position: relative;
+        }
+
+        #coherenceFill {
+            height: 100%;
+            background-color: #0f0;
+            width: 100%;
+            transition: width 0.1s, background-color 0.2s;
+        }
+
+        #promptOutput {
+            position: absolute;
+            bottom: 30px;
+            left: 20px;
+            width: calc(100% - 40px);
+            font-size: 1.2rem;
+            color: #8f8;
+            word-wrap: break-word;
+            opacity: 0.7;
+            pointer-events: none;
+            z-index: 5;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <h1 id="title">> THE_PROMPT</h1>
+        <p id="subtitle">Awaiting Input...</p>
+        <div class="controls">
+            Move mouse to guide the <span class="highlight">Cursor (_)</span>.<br>
+            Collect valid <span class="highlight">Tokens</span> to build your prompt.<br>
+            Avoid red <span style="color:#f00; text-shadow:0 0 5px #f00;">Hallucinations</span>.<br>
+            Press <span class="highlight">SPACE</span> or <span class="highlight">CLICK</span> to execute a Context Flush (costs tokens).
+        </div>
+    </div>
+
+    <div id="hud">
+        <div class="stat-row">
+            <div class="score-container">
+                TOKENS: <span id="scoreEl">0</span>
+            </div>
+            <div class="coherence-container">
+                COHERENCE
+                <div id="coherenceBar"><div id="coherenceFill"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="promptOutput">> </div>
+
+    <canvas id="game"></canvas>
+
+<script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const ui = document.getElementById('ui');
+    const title = document.getElementById('title');
+    const subtitle = document.getElementById('subtitle');
+    const hud = document.getElementById('hud');
+    const scoreEl = document.getElementById('scoreEl');
+    const coherenceFill = document.getElementById('coherenceFill');
+    const promptOutput = document.getElementById('promptOutput');
+
+    let width, height;
+    function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // --- Audio System ---
+    let audioCtx = null;
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+    }
+
+    function playSound(type) {
+        if (!audioCtx) return;
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'token') {
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(800 + Math.random() * 400, now);
+            osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+            gain.gain.setValueAtTime(0.05, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            osc.start(now);
+            osc.stop(now + 0.1);
+        } else if (type === 'hit') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(100, now);
+            osc.frequency.linearRampToValueAtTime(50, now + 0.3);
+            
+            // Add some noise
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 400;
+            osc.disconnect();
+            osc.connect(filter);
+            filter.connect(gain);
+
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.3);
+            osc.start(now);
+            osc.stop(now + 0.3);
+        } else if (type === 'flush') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(200, now);
+            osc.frequency.exponentialRampToValueAtTime(1200, now + 0.4);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.4);
+            osc.start(now);
+            osc.stop(now + 0.4);
+        } else if (type === 'gameover') {
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.setValueAtTime(100, now + 0.2);
+            osc.frequency.setValueAtTime(50, now + 0.4);
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.linearRampToValueAtTime(0, now + 1.5);
+            osc.start(now);
+            osc.stop(now + 1.5);
+        }
+    }
+
+    // --- Data ---
+    const goodWords = ["system", "user", "assistant", "context", "attention", "transformer", "weight", "bias", "epoch", "generate", "predict", "model", "parameter", "embedding", "vector", "latent"];
+    const badWords = ["NaN", "undefined", "[Object object]", "NullPointerException", "SegFault", "hallucination", "InfiniteLoop", "OOM", "Timeout", "ERR_CONNECTION", "404", "500"];
+
+    // --- Input Handling ---
+    const mouse = { x: width / 2, y: height / 2 };
+    let flushTriggered = false;
+
+    window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+    window.addEventListener('mousedown', () => { 
+        if (state === 'MENU' || state === 'GAMEOVER') {
+            startGame();
+        } else if (state === 'PLAYING') {
+            flushTriggered = true;
+        }
+    });
+    window.addEventListener('keydown', e => { 
+        if (e.code === 'Space') {
+            if (state === 'MENU' || state === 'GAMEOVER') startGame();
+            else if (state === 'PLAYING') flushTriggered = true;
+        }
+    });
+
+    // --- Game State ---
+    let state = 'MENU'; 
+    let score = 0;
+    let coherence = 100;
+    let shakeAmount = 0;
+    let glitchEffect = 0;
+    let generatedPrompt = "> ";
+    
+    // Entities
+    let player;
+    let tokens = [];
+    let enemies = [];
+    let particles = [];
+    let flushRipples = [];
+    
+    let spawnTimer = 0;
+    let difficulty = 1;
+
+    class Player {
+        constructor() {
+            this.x = width / 2;
+            this.y = height / 2;
+            this.vx = 0;
+            this.vy = 0;
+            this.char = "_";
+            this.blinkTimer = 0;
+            this.visible = true;
+        }
+
+        update(dt) {
+            // Smooth follow mouse
+            const dx = mouse.x - this.x;
+            const dy = mouse.y - this.y;
+            this.vx = dx * 0.1;
+            this.vy = dy * 0.1;
+            this.x += this.vx;
+            this.y += this.vy;
+
+            this.blinkTimer += dt;
+            if (this.blinkTimer > 500) {
+                this.visible = !this.visible;
+                this.blinkTimer = 0;
+            }
+        }
+
+        draw(ctx) {
+            if (!this.visible && state === 'PLAYING') return;
+            ctx.font = "bold 24px 'Fira Code', monospace";
+            ctx.fillStyle = '#0f0';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#0f0';
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(this.char, this.x, this.y);
+            ctx.shadowBlur = 0; // reset
+        }
+    }
+
+    class FloatingText {
+        constructor(isBad) {
+            this.isBad = isBad;
+            
+            // Spawn outside screen
+            const edge = Math.floor(Math.random() * 4);
+            if (edge === 0) { this.x = Math.random() * width; this.y = -50; }
+            else if (edge === 1) { this.x = width + 50; this.y = Math.random() * height; }
+            else if (edge === 2) { this.x = Math.random() * width; this.y = height + 50; }
+            else { this.x = -50; this.y = Math.random() * height; }
+
+            this.text = isBad ? badWords[Math.floor(Math.random() * badWords.length)] : goodWords[Math.floor(Math.random() * goodWords.length)];
+            
+            ctx.font = "16px 'Fira Code', monospace";
+            this.width = ctx.measureText(this.text).width;
+            this.height = 16;
+            this.radius = Math.max(this.width, this.height) / 2; // For simple collision
+
+            this.speed = (isBad ? 1.5 : 0.8) * (1 + (difficulty - 1) * 0.2) + Math.random();
+            this.vx = 0;
+            this.vy = 0;
+            this.angle = Math.random() * Math.PI * 2;
+            this.wobble = Math.random() * Math.PI * 2;
+        }
+
+        update(dt, px, py) {
+            if (this.isBad) {
+                // Homing behavior for enemies
+                const targetAngle = Math.atan2(py - this.y, px - this.x);
+                let diff = targetAngle - this.angle;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                this.angle += diff * 0.05;
+                
+                this.vx = Math.cos(this.angle) * this.speed;
+                this.vy = Math.sin(this.angle) * this.speed;
+            } else {
+                // Drifting behavior for tokens
+                this.wobble += 0.05;
+                this.vx = Math.cos(this.angle) * this.speed + Math.cos(this.wobble) * 0.5;
+                this.vy = Math.sin(this.angle) * this.speed + Math.sin(this.wobble) * 0.5;
+            }
+
+            this.x += this.vx;
+            this.y += this.vy;
+        }
+
+        draw(ctx) {
+            ctx.font = "16px 'Fira Code', monospace";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            
+            if (this.isBad) {
+                ctx.fillStyle = '#f00';
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#f00';
+                // Glitchy offset sometimes
+                if (Math.random() > 0.9) {
+                    ctx.fillText(this.text, this.x + (Math.random()-0.5)*10, this.y + (Math.random()-0.5)*10);
+                } else {
+                    ctx.fillText(this.text, this.x, this.y);
+                }
+            } else {
+                ctx.fillStyle = '#0ff';
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = '#0ff';
+                ctx.fillText(this.text, this.x, this.y);
+            }
+            ctx.shadowBlur = 0;
+        }
+    }
+
+    class TextParticle {
+        constructor(x, y, char, color) {
+            this.x = x;
+            this.y = y;
+            this.char = char;
+            this.color = color;
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 4 + 1;
+            this.vx = Math.cos(angle) * speed;
+            this.vy = Math.sin(angle) * speed;
+            this.life = 1.0;
+            this.decay = Math.random() * 0.03 + 0.02;
+        }
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.life -= this.decay;
+        }
+        draw(ctx) {
+            ctx.globalAlpha = Math.max(0, this.life);
+            ctx.fillStyle = this.color;
+            ctx.font = "12px 'Fira Code', monospace";
+            ctx.fillText(this.char, this.x, this.y);
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    function createExplosion(x, y, text, color) {
+        for(let i=0; i<text.length; i++) {
+            particles.push(new TextParticle(x, y, text[i], color));
+        }
+    }
+
+    function triggerShake(intensity) {
+        shakeAmount = intensity;
+    }
+
+    function resetGame() {
+        player = new Player();
+        tokens = [];
+        enemies = [];
+        particles = [];
+        flushRipples = [];
+        score = 0;
+        coherence = 100;
+        difficulty = 1;
+        generatedPrompt = "> ";
+        updateHUD();
+    }
+
+    function updateHUD() {
+        scoreEl.innerText = score;
+        coherenceFill.style.width = `${coherence}%`;
+        if (coherence > 50) coherenceFill.style.backgroundColor = '#0f0';
+        else if (coherence > 25) coherenceFill.style.backgroundColor = '#ff0';
+        else coherenceFill.style.backgroundColor = '#f00';
+        
+        promptOutput.innerText = generatedPrompt + (player.visible ? "_" : " ");
+    }
+
+    function startGame() {
+        initAudio();
+        resetGame();
+        state = 'PLAYING';
+        ui.classList.add('hidden');
+        hud.classList.add('visible');
+    }
+
+    function gameOver() {
+        state = 'GAMEOVER';
+        playSound('gameover');
+        triggerShake(30);
+        glitchEffect = 1.0;
+        hud.classList.remove('visible');
+        ui.classList.remove('hidden');
+        title.innerText = "CONTEXT COLLAPSE";
+        title.style.color = "#f00";
+        title.style.textShadow = "0 0 10px #f00, 2px 2px 0px #0ff";
+        subtitle.innerText = `Tokens Generated: ${score}`;
+        setTimeout(() => {
+            ui.style.pointerEvents = 'auto'; 
+        }, 1000);
+    }
+
+    // --- Main Loop ---
+    let lastTime = 0;
+    function loop(timestamp) {
+        requestAnimationFrame(loop);
+        const dt = timestamp - lastTime || 0;
+        lastTime = timestamp;
+
+        // Clear screen with trail
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.fillRect(0, 0, width, height);
+
+        if (state === 'MENU' || state === 'GAMEOVER') {
+            // Glitch effect on background
+            if (glitchEffect > 0) {
+                ctx.fillStyle = Math.random() > 0.5 ? '#f00' : '#0f0';
+                for(let i=0; i<5; i++) {
+                    ctx.fillRect(Math.random()*width, Math.random()*height, Math.random()*100, Math.random()*10);
+                }
+                glitchEffect -= 0.02;
+            }
+            if (state === 'MENU') {
+                player.update(dt);
+                player.draw(ctx);
+            }
+            return;
+        }
+
+        // Apply shake
+        if (shakeAmount > 0) {
+            ctx.save();
+            const dx = (Math.random() - 0.5) * shakeAmount;
+            const dy = (Math.random() - 0.5) * shakeAmount;
+            ctx.translate(dx, dy);
+            shakeAmount *= 0.9;
+            if (shakeAmount < 0.5) shakeAmount = 0;
+        } else {
+            ctx.save();
+        }
+
+        // Difficulty scaling
+        difficulty += dt * 0.00005;
+
+        // Spawning
+        spawnTimer += dt;
+        const spawnRate = Math.max(400, 1500 - difficulty * 200);
+        if (spawnTimer > spawnRate) {
+            spawnTimer = 0;
+            if (Math.random() > 0.4) {
+                tokens.push(new FloatingText(false)); // 60% good
+            } else {
+                enemies.push(new FloatingText(true)); // 40% bad
+            }
+        }
+
+        // Context Flush (Weapon)
+        if (flushTriggered) {
+            flushTriggered = false;
+            if (score >= 5) {
+                score -= 5;
+                playSound('flush');
+                flushRipples.push({ x: player.x, y: player.y, radius: 10, life: 1.0 });
+                triggerShake(5);
+                
+                // Remove prompt text
+                let words = generatedPrompt.trim().split(" ");
+                if (words.length > 2) {
+                    words = words.slice(0, words.length - 1);
+                    generatedPrompt = words.join(" ") + " ";
+                }
+                updateHUD();
+            }
+        }
+
+        // Update Ripples
+        for (let i = flushRipples.length - 1; i >= 0; i--) {
+            const r = flushRipples[i];
+            r.radius += 15;
+            r.life -= 0.05;
+            
+            ctx.beginPath();
+            ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(0, 255, 255, ${r.life})`;
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // Destroy enemies in radius
+            for (let j = enemies.length - 1; j >= 0; j--) {
+                const e = enemies[j];
+                const dist = Math.hypot(e.x - r.x, e.y - r.y);
+                if (dist < r.radius) {
+                    createExplosion(e.x, e.y, e.text, '#f00');
+                    enemies.splice(j, 1);
+                    score += 1; // get a point back
+                }
+            }
+
+            if (r.life <= 0) flushRipples.splice(i, 1);
+        }
+
+        // Update Player
+        player.update(dt);
+        player.draw(ctx);
+
+        // Update Tokens
+        for (let i = tokens.length - 1; i >= 0; i--) {
+            const t = tokens[i];
+            t.update(dt, player.x, player.y);
+            t.draw(ctx);
+
+            // Collision with player
+            const dist = Math.hypot(t.x - player.x, t.y - player.y);
+            if (dist < t.radius + 15) {
+                playSound('token');
+                createExplosion(t.x, t.y, t.text, '#0ff');
+                tokens.splice(i, 1);
+                score += 1;
+                coherence = Math.min(100, coherence + 5);
+                
+                // Add to prompt string
+                generatedPrompt += t.text + " ";
+                if (generatedPrompt.length > 150) {
+                    generatedPrompt = "> ..." + generatedPrompt.substring(generatedPrompt.length - 140);
+                }
+                
+                updateHUD();
+            } else if (t.x < -100 || t.x > width + 100 || t.y < -100 || t.y > height + 100) {
+                tokens.splice(i, 1); // cleanup offscreen
+            }
+        }
+
+        // Update Enemies
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const e = enemies[i];
+            e.update(dt, player.x, player.y);
+            e.draw(ctx);
+
+            // Collision with player
+            const dist = Math.hypot(e.x - player.x, e.y - player.y);
+            if (dist < e.radius + 15) {
+                playSound('hit');
+                createExplosion(e.x, e.y, e.text, '#f00');
+                enemies.splice(i, 1);
+                coherence -= 20;
+                triggerShake(15);
+                
+                // Corrupt prompt string
+                generatedPrompt += "[CORRUPTED] ";
+                
+                updateHUD();
+
+                if (coherence <= 0) {
+                    gameOver();
+                    break;
+                }
+            }
+        }
+
+        // Update Particles
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.update();
+            p.draw(ctx);
+            if (p.life <= 0) particles.splice(i, 1);
+        }
+
+        ctx.restore(); // restore shake
+        updateHUD(); // keep cursor blinking in prompt
+    }
+
+    // Start Loop
+    requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>

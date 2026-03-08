@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0f1117;
+  --bg-soft: #131825;
+  --surface: rgba(26, 29, 39, 0.88);
+  --surface-strong: rgba(31, 36, 49, 0.98);
+  --text: #f1f5f9;
+  --muted: #64748b;
+  --line: rgba(148, 163, 184, 0.16);
+  --ring: rgba(59, 130, 246, 0.34);
+  --card-glow: rgba(59, 130, 246, 0.16);
+  --font-scale: 1;
+}
+
+html.light {
+  --bg: #eef3f8;
+  --bg-soft: #dce6f2;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-strong: rgba(255, 255, 255, 0.96);
+  --text: #102033;
+  --muted: #5c6b7d;
+  --line: rgba(15, 23, 42, 0.08);
+  --ring: rgba(34, 197, 94, 0.2);
+  --card-glow: rgba(15, 23, 42, 0.06);
+}
+
+* {
+  border-color: var(--line);
+}
+
+html,
+body {
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.2), transparent 34%),
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.14), transparent 30%),
+    linear-gradient(180deg, var(--bg-soft), var(--bg));
+  color: var(--text);
+}
+
+body {
+  font-size: calc(15px * var(--font-scale));
+}
+
+.font-scale-sm {
+  --font-scale: 0.94;
+}
+
+.font-scale-md {
+  --font-scale: 1;
+}
+
+.font-scale-lg {
+  --font-scale: 1.08;
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.28);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.38);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@layer base {
+  a {
+    color: inherit;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    outline: none;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply border backdrop-blur-xl;
+    background: var(--surface);
+    box-shadow: 0 30px 120px var(--card-glow);
+  }
+
+  .surface-panel {
+    @apply border;
+    background: var(--surface-strong);
+    box-shadow: 0 24px 64px rgba(15, 17, 23, 0.18);
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition;
+    background: rgba(148, 163, 184, 0.06);
+  }
+
+  .chip[data-active="true"] {
+    @apply border-primary/40 text-text;
+    background: rgba(59, 130, 246, 0.18);
+    box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.15);
+  }
+
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      rgba(148, 163, 184, 0.08) 0%,
+      rgba(148, 163, 184, 0.2) 50%,
+      rgba(148, 163, 184, 0.08) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s linear infinite;
+  }
+
+  .text-muted {
+    color: var(--muted);
+  }
+}

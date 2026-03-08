@@ -1,0 +1,1219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Glasswire Garden</title>
+  <style>
+    :root {
+      --bg-0: #08030d;
+      --bg-1: #12091b;
+      --bg-2: #1b1025;
+      --panel: rgba(18, 12, 26, 0.7);
+      --panel-border: rgba(255, 255, 255, 0.12);
+      --text: #f6e9d4;
+      --muted: #c9bda8;
+      --accent: #8ff7d5;
+      --accent-2: #ff8b7a;
+      --accent-3: #ffe28a;
+      --danger: #ff6677;
+      --shadow: rgba(0, 0, 0, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(143, 247, 213, 0.08), transparent 25%),
+        radial-gradient(circle at 80% 15%, rgba(255, 139, 122, 0.08), transparent 28%),
+        radial-gradient(circle at 50% 120%, rgba(255, 226, 138, 0.12), transparent 45%),
+        linear-gradient(180deg, var(--bg-2), var(--bg-0));
+      color: var(--text);
+      font-family: "Avenir Next Condensed", "Arial Narrow", "Segoe UI", sans-serif;
+      letter-spacing: 0.02em;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    body::before {
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(circle at center, black 40%, transparent 88%);
+      opacity: 0.25;
+    }
+
+    body::after {
+      background:
+        radial-gradient(circle at center, transparent 45%, rgba(0, 0, 0, 0.35) 100%);
+    }
+
+    #game {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #hud {
+      position: fixed;
+      inset: 18px 18px auto 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .card {
+      min-width: 240px;
+      padding: 14px 16px;
+      border: 1px solid var(--panel-border);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: 0 24px 80px var(--shadow);
+      backdrop-filter: blur(20px);
+    }
+
+    .brand {
+      margin-bottom: 10px;
+      font-size: 13px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .scoreline,
+    .metaline {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      font-size: 16px;
+    }
+
+    .scoreline strong,
+    .metaline strong {
+      font-size: 30px;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    .bars {
+      margin-top: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .barlabel {
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+    }
+
+    .bartrack {
+      width: 220px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+
+    .barfill {
+      height: 100%;
+      border-radius: inherit;
+      transform-origin: left center;
+      transition: transform 120ms linear;
+    }
+
+    #hpFill {
+      background: linear-gradient(90deg, var(--danger), #ffb37a);
+      box-shadow: 0 0 18px rgba(255, 102, 119, 0.42);
+    }
+
+    #chargeFill {
+      background: linear-gradient(90deg, #62d6ff, var(--accent));
+      box-shadow: 0 0 18px rgba(143, 247, 213, 0.4);
+    }
+
+    #panel {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      width: min(640px, calc(100vw - 32px));
+      padding: 28px 28px 24px;
+      transform: translate(-50%, -50%);
+      border-radius: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background:
+        radial-gradient(circle at top right, rgba(143, 247, 213, 0.14), transparent 32%),
+        radial-gradient(circle at bottom left, rgba(255, 139, 122, 0.14), transparent 36%),
+        rgba(15, 11, 22, 0.82);
+      box-shadow: 0 40px 120px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(20px);
+      z-index: 3;
+    }
+
+    #panel.hidden {
+      display: none;
+    }
+
+    #eyebrow {
+      font-size: 12px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    #title {
+      margin: 8px 0 10px;
+      font-size: clamp(40px, 9vw, 72px);
+      line-height: 0.92;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    #subtitle {
+      max-width: 48ch;
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.35;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin: 18px 0;
+    }
+
+    .tile {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .tile h3 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--accent-3);
+    }
+
+    .tile p {
+      margin: 0;
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.3;
+    }
+
+    #prompt {
+      margin-top: 18px;
+      font-size: 14px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    #hint {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(14, 9, 20, 0.68);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+      font-size: 12px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    @media (max-width: 720px) {
+      #hud {
+        inset: 12px 12px auto 12px;
+        flex-direction: column;
+      }
+
+      .card,
+      .bartrack {
+        width: 100%;
+      }
+
+      .card {
+        min-width: 0;
+      }
+
+      #panel {
+        padding: 22px 20px 20px;
+      }
+
+      .scoreline strong,
+      .metaline strong {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="Glasswire Garden game canvas"></canvas>
+
+  <div id="hud">
+    <div class="card">
+      <div class="brand">Glasswire Garden</div>
+      <div class="scoreline">
+        <div>
+          <div class="muted">Score</div>
+          <strong id="scoreValue">0</strong>
+        </div>
+        <div>
+          <div class="muted">Best</div>
+          <strong id="bestValue">0</strong>
+        </div>
+      </div>
+      <div class="bars">
+        <div>
+          <div class="barlabel"><span>Integrity</span><span id="hpLabel">100%</span></div>
+          <div class="bartrack"><div class="barfill" id="hpFill"></div></div>
+        </div>
+        <div>
+          <div class="barlabel"><span>Filament</span><span id="chargeLabel">100%</span></div>
+          <div class="bartrack"><div class="barfill" id="chargeFill"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="metaline">
+        <div>
+          <div class="muted">Bloom</div>
+          <strong id="bloomValue">1x</strong>
+        </div>
+        <div>
+          <div class="muted">Time</div>
+          <strong id="timeValue">0.0</strong>
+        </div>
+      </div>
+      <div class="bars">
+        <div class="barlabel"><span>How It Works</span><span>Hold `Space` to weave</span></div>
+        <div class="barlabel"><span>Lure pursuers</span><span>Release to harden the wire</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel"></div>
+  <div id="hint">WASD / Arrows move. Hold Space to weave. Release to cut.</div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const panel = document.getElementById("panel");
+    const hint = document.getElementById("hint");
+    const scoreValue = document.getElementById("scoreValue");
+    const bestValue = document.getElementById("bestValue");
+    const bloomValue = document.getElementById("bloomValue");
+    const timeValue = document.getElementById("timeValue");
+    const hpFill = document.getElementById("hpFill");
+    const chargeFill = document.getElementById("chargeFill");
+    const hpLabel = document.getElementById("hpLabel");
+    const chargeLabel = document.getElementById("chargeLabel");
+
+    const STORAGE_KEY = "glasswire-garden-best";
+    let bestScore = Number(localStorage.getItem(STORAGE_KEY) || 0);
+    bestValue.textContent = String(bestScore);
+
+    const input = new Set();
+    let state = "title";
+    let lastTime = 0;
+    let screen = { width: window.innerWidth, height: window.innerHeight, dpr: Math.min(window.devicePixelRatio || 1, 2) };
+    let audioContext = null;
+    let audioReady = false;
+    let world = null;
+    let shake = 0;
+    let flash = 0;
+    let firstWireCast = false;
+
+    const stars = Array.from({ length: 120 }, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      size: 0.6 + Math.random() * 2.3,
+      drift: 0.3 + Math.random() * 0.7,
+      hue: Math.random() < 0.5 ? "#8ff7d5" : "#ffe28a"
+    }));
+
+    function resize() {
+      screen.width = window.innerWidth;
+      screen.height = window.innerHeight;
+      screen.dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(screen.width * screen.dpr);
+      canvas.height = Math.floor(screen.height * screen.dpr);
+      canvas.style.width = screen.width + "px";
+      canvas.style.height = screen.height + "px";
+      ctx.setTransform(screen.dpr, 0, 0, screen.dpr, 0, 0);
+      if (world) {
+        world.player.x = clamp(world.player.x, 40, screen.width - 40);
+        world.player.y = clamp(world.player.y, 40, screen.height - 40);
+      }
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function rand(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    function hexToRgba(hex, alpha) {
+      const value = hex.replace("#", "");
+      const normalized = value.length === 3
+        ? value.split("").map((char) => char + char).join("")
+        : value;
+      const int = Number.parseInt(normalized, 16);
+      const r = (int >> 16) & 255;
+      const g = (int >> 8) & 255;
+      const b = int & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function distSq(ax, ay, bx, by) {
+      const dx = bx - ax;
+      const dy = by - ay;
+      return dx * dx + dy * dy;
+    }
+
+    function segmentDistanceSq(px, py, ax, ay, bx, by) {
+      const abx = bx - ax;
+      const aby = by - ay;
+      const apx = px - ax;
+      const apy = py - ay;
+      const abLenSq = abx * abx + aby * aby || 1;
+      const t = clamp((apx * abx + apy * aby) / abLenSq, 0, 1);
+      const cx = ax + abx * t;
+      const cy = ay + aby * t;
+      const dx = px - cx;
+      const dy = py - cy;
+      return dx * dx + dy * dy;
+    }
+
+    function ensureAudio() {
+      if (!audioContext) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) {
+          return;
+        }
+        audioContext = new AudioCtx();
+      }
+      if (audioContext.state === "suspended") {
+        audioContext.resume();
+      }
+      audioReady = true;
+    }
+
+    function tone({ freq = 220, type = "sine", volume = 0.03, duration = 0.14, slideTo = null, when = 0, q = 6 }) {
+      if (!audioReady || !audioContext) {
+        return;
+      }
+      const now = audioContext.currentTime + when;
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      const filter = audioContext.createBiquadFilter();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, now);
+      if (slideTo !== null) {
+        osc.frequency.exponentialRampToValueAtTime(Math.max(30, slideTo), now + duration);
+      }
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(freq * 4, now);
+      filter.Q.value = q;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(volume, now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.start(now);
+      osc.stop(now + duration + 0.03);
+    }
+
+    function playStartSound() {
+      tone({ freq: 220, slideTo: 350, type: "triangle", volume: 0.04, duration: 0.18 });
+      tone({ freq: 310, slideTo: 510, type: "triangle", volume: 0.03, duration: 0.22, when: 0.06 });
+    }
+
+    function playWireSound(length) {
+      const freq = clamp(180 + length * 0.55, 180, 520);
+      tone({ freq, slideTo: freq * 0.58, type: "sawtooth", volume: 0.035, duration: 0.19 });
+      tone({ freq: freq * 1.45, slideTo: freq * 0.7, type: "triangle", volume: 0.018, duration: 0.14, when: 0.015 });
+    }
+
+    function playKillSound(chain) {
+      const base = 330 + Math.min(chain, 8) * 38;
+      tone({ freq: base, slideTo: base * 1.2, type: "triangle", volume: 0.025, duration: 0.08 });
+    }
+
+    function playHurtSound() {
+      tone({ freq: 160, slideTo: 90, type: "square", volume: 0.04, duration: 0.18, q: 3 });
+    }
+
+    function playGameOverSound() {
+      tone({ freq: 200, slideTo: 72, type: "sawtooth", volume: 0.05, duration: 0.38, q: 2 });
+      tone({ freq: 130, slideTo: 58, type: "triangle", volume: 0.03, duration: 0.42, when: 0.08, q: 2 });
+    }
+
+    function startGame() {
+      ensureAudio();
+      playStartSound();
+      firstWireCast = false;
+      world = {
+        time: 0,
+        score: 0,
+        enemiesKilled: 0,
+        difficulty: 1,
+        spawnTimer: 0.5,
+        particles: [],
+        ripples: [],
+        pops: [],
+        wires: [],
+        enemies: [],
+        player: {
+          x: screen.width * 0.5,
+          y: screen.height * 0.58,
+          vx: 0,
+          vy: 0,
+          radius: 11,
+          hp: 100,
+          maxHp: 100,
+          energy: 100,
+          maxEnergy: 100,
+          invuln: 0,
+          weaving: false,
+          trail: [],
+          bloom: 1
+        }
+      };
+      state = "play";
+      shake = 0;
+      flash = 0;
+      updatePanel();
+      updateHud();
+      hint.style.display = "block";
+    }
+
+    function goToTitle() {
+      world = null;
+      state = "title";
+      hint.style.display = "none";
+      updatePanel();
+      updateHud();
+    }
+
+    function finishGame() {
+      state = "gameover";
+      bestScore = Math.max(bestScore, Math.floor(world.score));
+      localStorage.setItem(STORAGE_KEY, String(bestScore));
+      bestValue.textContent = String(bestScore);
+      hint.style.display = "none";
+      playGameOverSound();
+      updatePanel();
+    }
+
+    function updatePanel() {
+      if (state === "play") {
+        panel.classList.add("hidden");
+        return;
+      }
+      panel.classList.remove("hidden");
+      if (state === "title") {
+        panel.innerHTML = `
+          <div id="eyebrow">Browser Game / No Assets / One Mechanic</div>
+          <h1 id="title">Glasswire<br>Garden</h1>
+          <p id="subtitle">Weave fragile filaments through a predatory bloom. Release them into bright glasswire, then bait the swarm into its edge.</p>
+          <div class="grid">
+            <div class="tile">
+              <h3>Controls</h3>
+              <p><strong>WASD</strong> or <strong>Arrow Keys</strong> move.<br><strong>Hold Space</strong> to weave.<br><strong>Release Space</strong> to harden the wire.</p>
+            </div>
+            <div class="tile">
+              <h3>Objective</h3>
+              <p>Survive as long as possible. Longer wires and bigger kill chains increase your bloom multiplier and score.</p>
+            </div>
+          </div>
+          <div id="prompt">Press Enter to begin</div>
+        `;
+      } else if (state === "gameover") {
+        panel.innerHTML = `
+          <div id="eyebrow">Garden Collapsed</div>
+          <h1 id="title">Score ${Math.floor(world.score)}</h1>
+          <p id="subtitle">You held for ${world.time.toFixed(1)} seconds and cut down ${world.enemiesKilled} pursuers. The wire rewards patience: longer herds create sharper bloom.</p>
+          <div class="grid">
+            <div class="tile">
+              <h3>Best</h3>
+              <p>${bestScore}</p>
+            </div>
+            <div class="tile">
+              <h3>Restart</h3>
+              <p>Press <strong>Enter</strong> to grow another garden.</p>
+            </div>
+          </div>
+          <div id="prompt">Enter to restart</div>
+        `;
+      }
+    }
+
+    function updateHud() {
+      if (!world) {
+        scoreValue.textContent = "0";
+        bloomValue.textContent = "1x";
+        timeValue.textContent = "0.0";
+        hpFill.style.transform = "scaleX(1)";
+        chargeFill.style.transform = "scaleX(1)";
+        hpLabel.textContent = "100%";
+        chargeLabel.textContent = "100%";
+        return;
+      }
+      const player = world.player;
+      scoreValue.textContent = String(Math.floor(world.score));
+      bestValue.textContent = String(bestScore);
+      bloomValue.textContent = `${player.bloom.toFixed(1)}x`;
+      timeValue.textContent = world.time.toFixed(1);
+      const hpPct = clamp(player.hp / player.maxHp, 0, 1);
+      const energyPct = clamp(player.energy / player.maxEnergy, 0, 1);
+      hpFill.style.transform = `scaleX(${hpPct})`;
+      chargeFill.style.transform = `scaleX(${energyPct})`;
+      hpLabel.textContent = `${Math.round(hpPct * 100)}%`;
+      chargeLabel.textContent = `${Math.round(energyPct * 100)}%`;
+    }
+
+    function spawnEnemy() {
+      const edge = Math.floor(Math.random() * 4);
+      const margin = 40;
+      let x = 0;
+      let y = 0;
+      if (edge === 0) {
+        x = rand(-margin, screen.width + margin);
+        y = -margin;
+      } else if (edge === 1) {
+        x = screen.width + margin;
+        y = rand(-margin, screen.height + margin);
+      } else if (edge === 2) {
+        x = rand(-margin, screen.width + margin);
+        y = screen.height + margin;
+      } else {
+        x = -margin;
+        y = rand(-margin, screen.height + margin);
+      }
+
+      const roll = Math.random();
+      let type = "stalker";
+      if (roll < 0.18 + Math.min(world.time * 0.004, 0.16)) {
+        type = "brute";
+      } else if (roll > 0.72) {
+        type = "dart";
+      }
+
+      const presets = {
+        stalker: { radius: rand(11, 15), speed: rand(66, 88), color: "#ff8b7a", damage: 14, drag: 0.86 },
+        brute: { radius: rand(19, 24), speed: rand(40, 54), color: "#ffe28a", damage: 24, drag: 0.91 },
+        dart: { radius: rand(8, 10), speed: rand(112, 146), color: "#9df6ff", damage: 10, drag: 0.8 }
+      };
+      const preset = presets[type];
+      world.enemies.push({
+        x,
+        y,
+        vx: 0,
+        vy: 0,
+        type,
+        wobble: Math.random() * Math.PI * 2,
+        radius: preset.radius,
+        speed: preset.speed + world.difficulty * (type === "dart" ? 5 : 3),
+        color: preset.color,
+        damage: preset.damage,
+        drag: preset.drag
+      });
+    }
+
+    function addRipple(x, y, radius, color) {
+      world.ripples.push({ x, y, radius, color, age: 0, life: 0.55 });
+    }
+
+    function addPop(text, x, y, color) {
+      world.pops.push({ text, x, y, color, age: 0, life: 0.7 });
+    }
+
+    function addParticles(x, y, color, count, speed = 180) {
+      for (let i = 0; i < count; i += 1) {
+        const angle = Math.random() * Math.PI * 2;
+        const velocity = rand(speed * 0.2, speed);
+        world.particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * velocity,
+          vy: Math.sin(angle) * velocity,
+          life: rand(0.2, 0.8),
+          maxLife: rand(0.2, 0.8),
+          size: rand(1.8, 4.4),
+          color
+        });
+      }
+    }
+
+    function tryReleaseWire(force = false) {
+      const player = world.player;
+      if (!player.trail.length) {
+        player.weaving = false;
+        return;
+      }
+
+      const points = player.trail.slice();
+      player.trail.length = 0;
+      player.weaving = false;
+
+      if (points.length < 3 && !force) {
+        return;
+      }
+
+      let length = 0;
+      for (let i = 1; i < points.length; i += 1) {
+        length += Math.sqrt(distSq(points[i - 1].x, points[i - 1].y, points[i].x, points[i].y));
+      }
+      if (length < 38) {
+        return;
+      }
+
+      const wire = {
+        points,
+        age: 0,
+        life: 1.25,
+        width: clamp(10 + length * 0.015, 10, 18),
+        hits: 0
+      };
+      world.wires.push(wire);
+      if (world.wires.length > 4) {
+        world.wires.shift();
+      }
+      addRipple(points[points.length - 1].x, points[points.length - 1].y, clamp(length * 0.14, 46, 120), "#8ff7d5");
+      addParticles(points[points.length - 1].x, points[points.length - 1].y, "#8ff7d5", 20, 220);
+      shake = Math.max(shake, 5 + length * 0.012);
+      flash = Math.min(1, flash + 0.12);
+      playWireSound(length);
+      firstWireCast = true;
+      hint.style.display = "none";
+    }
+
+    function hurtPlayer(enemy) {
+      const player = world.player;
+      if (player.invuln > 0) {
+        return;
+      }
+      player.hp -= enemy.damage;
+      player.invuln = 1.05;
+      shake = Math.max(shake, 10);
+      flash = Math.min(1, flash + 0.2);
+      addRipple(player.x, player.y, 50, "#ff6677");
+      addParticles(player.x, player.y, "#ff6677", 18, 160);
+      playHurtSound();
+      const dx = player.x - enemy.x;
+      const dy = player.y - enemy.y;
+      const distance = Math.hypot(dx, dy) || 1;
+      player.vx += (dx / distance) * 220;
+      player.vy += (dy / distance) * 220;
+      if (player.hp <= 0) {
+        player.hp = 0;
+        finishGame();
+      }
+    }
+
+    function killEnemy(enemy, wire) {
+      wire.hits += 1;
+      world.enemiesKilled += 1;
+      world.score += 14 * wire.hits * world.player.bloom;
+      world.player.energy = clamp(world.player.energy + 12, 0, world.player.maxEnergy);
+      world.player.hp = clamp(world.player.hp + (enemy.type === "brute" ? 3.5 : 1.5), 0, world.player.maxHp);
+      world.player.bloom = clamp(world.player.bloom + (enemy.type === "brute" ? 0.18 : 0.08), 1, 9.9);
+      addParticles(enemy.x, enemy.y, enemy.color, enemy.type === "brute" ? 28 : 18, enemy.type === "brute" ? 210 : 170);
+      addRipple(enemy.x, enemy.y, enemy.radius * 3, enemy.color);
+      if (wire.hits > 1) {
+        addPop(`x${wire.hits}`, enemy.x, enemy.y - 10, "#ffe28a");
+      }
+      if (wire.hits >= 4) {
+        addParticles(enemy.x, enemy.y, "#ffffff", 12, 260);
+        shake = Math.max(shake, 12);
+      } else {
+        shake = Math.max(shake, 7);
+      }
+      playKillSound(wire.hits);
+    }
+
+    function updatePlay(dt) {
+      const player = world.player;
+      world.time += dt;
+      world.score += dt * (2 + world.player.bloom * 0.55);
+      world.difficulty = 1 + world.time * 0.08;
+      world.spawnTimer -= dt;
+      while (world.spawnTimer <= 0) {
+        spawnEnemy();
+        const cadence = clamp(1.08 - world.time * 0.013, 0.26, 1.08);
+        world.spawnTimer += cadence * rand(0.68, 1.08);
+      }
+
+      const xAxis = (input.has("ArrowRight") || input.has("KeyD") ? 1 : 0) - (input.has("ArrowLeft") || input.has("KeyA") ? 1 : 0);
+      const yAxis = (input.has("ArrowDown") || input.has("KeyS") ? 1 : 0) - (input.has("ArrowUp") || input.has("KeyW") ? 1 : 0);
+      const moving = xAxis !== 0 || yAxis !== 0;
+      const weavingHeld = input.has("Space") && player.energy > 1;
+
+      if (weavingHeld) {
+        player.weaving = true;
+      } else if (player.weaving) {
+        tryReleaseWire();
+      }
+
+      const moveNorm = moving ? 1 / Math.hypot(xAxis, yAxis) : 0;
+      const targetSpeed = player.weaving ? 184 : 238;
+      const accel = player.weaving ? 760 : 980;
+      player.vx += xAxis * moveNorm * accel * dt;
+      player.vy += yAxis * moveNorm * accel * dt;
+      player.vx *= Math.pow(0.0009, dt);
+      player.vy *= Math.pow(0.0009, dt);
+
+      const currentSpeed = Math.hypot(player.vx, player.vy);
+      if (currentSpeed > targetSpeed) {
+        const ratio = targetSpeed / currentSpeed;
+        player.vx *= ratio;
+        player.vy *= ratio;
+      }
+
+      player.x = clamp(player.x + player.vx * dt, 28, screen.width - 28);
+      player.y = clamp(player.y + player.vy * dt, 28, screen.height - 28);
+      player.invuln = Math.max(0, player.invuln - dt);
+      player.energy = clamp(player.energy + (player.weaving ? -38 : 22) * dt, 0, player.maxEnergy);
+      player.bloom = lerp(player.bloom, 1 + Math.min(world.time / 40, 1.2), dt * 0.08);
+
+      if (player.weaving) {
+        const trail = player.trail;
+        const last = trail[trail.length - 1];
+        if (!last || distSq(last.x, last.y, player.x, player.y) > 36) {
+          trail.push({ x: player.x, y: player.y });
+        } else {
+          last.x = player.x;
+          last.y = player.y;
+        }
+        while (trail.length > 48) {
+          trail.shift();
+        }
+        if (player.energy <= 0.8) {
+          tryReleaseWire(true);
+        }
+      }
+
+      if (!player.weaving && player.trail.length) {
+        player.trail.length = 0;
+      }
+
+      for (let i = world.wires.length - 1; i >= 0; i -= 1) {
+        const wire = world.wires[i];
+        wire.age += dt;
+        if (wire.age >= wire.life) {
+          world.wires.splice(i, 1);
+        }
+      }
+
+      for (let i = world.enemies.length - 1; i >= 0; i -= 1) {
+        const enemy = world.enemies[i];
+        enemy.wobble += dt * (enemy.type === "dart" ? 9 : enemy.type === "brute" ? 2.2 : 4.5);
+        const dx = player.x - enemy.x;
+        const dy = player.y - enemy.y;
+        const distance = Math.hypot(dx, dy) || 1;
+        const nx = dx / distance;
+        const ny = dy / distance;
+        const side = enemy.type === "dart" ? Math.sin(enemy.wobble) * 0.95 : enemy.type === "stalker" ? Math.sin(enemy.wobble) * 0.28 : 0;
+        enemy.vx += (nx - ny * side) * enemy.speed * dt;
+        enemy.vy += (ny + nx * side) * enemy.speed * dt;
+        enemy.vx *= enemy.drag;
+        enemy.vy *= enemy.drag;
+        enemy.x += enemy.vx * dt;
+        enemy.y += enemy.vy * dt;
+
+        let sliced = false;
+        for (let w = world.wires.length - 1; w >= 0 && !sliced; w -= 1) {
+          const wire = world.wires[w];
+          const active = wire.age < 0.85;
+          if (!active) {
+            continue;
+          }
+          for (let p = 1; p < wire.points.length; p += 1) {
+            const a = wire.points[p - 1];
+            const b = wire.points[p];
+            const cutoff = (enemy.radius + wire.width * 0.45) ** 2;
+            if (segmentDistanceSq(enemy.x, enemy.y, a.x, a.y, b.x, b.y) <= cutoff) {
+              killEnemy(enemy, wire);
+              world.enemies.splice(i, 1);
+              sliced = true;
+              break;
+            }
+          }
+        }
+
+        if (sliced) {
+          continue;
+        }
+
+        const hitRadius = enemy.radius + player.radius + (player.invuln > 0 ? 3 : 0);
+        if (distSq(enemy.x, enemy.y, player.x, player.y) <= hitRadius * hitRadius) {
+          hurtPlayer(enemy);
+        }
+      }
+
+      for (let i = world.particles.length - 1; i >= 0; i -= 1) {
+        const particle = world.particles[i];
+        particle.life -= dt;
+        if (particle.life <= 0) {
+          world.particles.splice(i, 1);
+          continue;
+        }
+        particle.vx *= Math.pow(0.0005, dt);
+        particle.vy *= Math.pow(0.0005, dt);
+        particle.x += particle.vx * dt;
+        particle.y += particle.vy * dt;
+      }
+
+      for (let i = world.ripples.length - 1; i >= 0; i -= 1) {
+        const ripple = world.ripples[i];
+        ripple.age += dt;
+        if (ripple.age >= ripple.life) {
+          world.ripples.splice(i, 1);
+        }
+      }
+
+      for (let i = world.pops.length - 1; i >= 0; i -= 1) {
+        const pop = world.pops[i];
+        pop.age += dt;
+        pop.y -= 36 * dt;
+        if (pop.age >= pop.life) {
+          world.pops.splice(i, 1);
+        }
+      }
+
+      shake = Math.max(0, shake - dt * 18);
+      flash = Math.max(0, flash - dt * 1.4);
+      if (world.time > 6 && !firstWireCast) {
+        hint.style.display = "block";
+      }
+      updateHud();
+    }
+
+    function renderBackground(time) {
+      ctx.clearRect(0, 0, screen.width, screen.height);
+      const gradient = ctx.createRadialGradient(screen.width * 0.5, screen.height * 0.52, 40, screen.width * 0.5, screen.height * 0.52, Math.max(screen.width, screen.height) * 0.62);
+      gradient.addColorStop(0, "rgba(34, 20, 44, 0.52)");
+      gradient.addColorStop(0.4, "rgba(20, 10, 28, 0.26)");
+      gradient.addColorStop(1, "rgba(7, 3, 13, 0.02)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, screen.width, screen.height);
+
+      for (let i = 0; i < stars.length; i += 1) {
+        const star = stars[i];
+        const x = (star.x * screen.width + Math.sin(time * 0.15 + i) * 10 * star.drift + screen.width) % screen.width;
+        const y = (star.y * screen.height + Math.cos(time * 0.12 + i) * 10 * star.drift + screen.height) % screen.height;
+        ctx.globalAlpha = 0.25 + star.drift * 0.35;
+        ctx.fillStyle = star.hue;
+        ctx.beginPath();
+        ctx.arc(x, y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function drawPlayer(player, time) {
+      const pulse = 1 + Math.sin(time * 8) * 0.08;
+      const aura = ctx.createRadialGradient(player.x, player.y, 2, player.x, player.y, 38);
+      aura.addColorStop(0, `rgba(143, 247, 213, ${player.invuln > 0 ? 0.8 : 0.46})`);
+      aura.addColorStop(1, "rgba(143, 247, 213, 0)");
+      ctx.fillStyle = aura;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, 38, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (player.trail.length > 1) {
+        ctx.strokeStyle = "rgba(143, 247, 213, 0.35)";
+        ctx.lineWidth = 7;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(player.trail[0].x, player.trail[0].y);
+        for (let i = 1; i < player.trail.length; i += 1) {
+          ctx.lineTo(player.trail[i].x, player.trail[i].y);
+        }
+        ctx.stroke();
+      }
+
+      ctx.save();
+      ctx.translate(player.x, player.y);
+      ctx.rotate(time * 1.4);
+      ctx.strokeStyle = "rgba(255, 226, 138, 0.7)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 15 * pulse, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = player.invuln > 0 ? "#ffffff" : "#8ff7d5";
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.radius * pulse, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#ffe28a";
+      ctx.beginPath();
+      ctx.arc(player.x + 2.5, player.y - 2.5, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawWire(wire) {
+      const alpha = wire.age < 0.8 ? 1 - wire.age * 0.12 : 1 - (wire.age - 0.8) / 0.45;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.shadowBlur = 24;
+      ctx.shadowColor = "rgba(143, 247, 213, 0.65)";
+
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.4 * alpha})`;
+      ctx.lineWidth = wire.width + 3;
+      ctx.beginPath();
+      ctx.moveTo(wire.points[0].x, wire.points[0].y);
+      for (let i = 1; i < wire.points.length; i += 1) {
+        ctx.lineTo(wire.points[i].x, wire.points[i].y);
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = `rgba(143, 247, 213, ${0.78 * alpha})`;
+      ctx.lineWidth = wire.width;
+      ctx.stroke();
+
+      ctx.strokeStyle = `rgba(255, 226, 138, ${0.24 * alpha})`;
+      ctx.lineWidth = Math.max(2, wire.width * 0.18);
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+    }
+
+    function drawEnemy(enemy, time) {
+      const angle = Math.atan2(enemy.vy, enemy.vx || 0.001);
+      ctx.save();
+      ctx.translate(enemy.x, enemy.y);
+      ctx.rotate(angle);
+
+      const glow = ctx.createRadialGradient(0, 0, 1, 0, 0, enemy.radius * 2.2);
+      glow.addColorStop(0, enemy.type === "brute" ? "rgba(255, 226, 138, 0.5)" : "rgba(255, 139, 122, 0.38)");
+      glow.addColorStop(1, "rgba(255, 139, 122, 0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, enemy.radius * 2.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.globalAlpha = 0.88;
+      if (enemy.type === "brute") {
+        ctx.fillStyle = enemy.color;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i += 1) {
+          const theta = (Math.PI * 2 * i) / 6 + Math.sin(time * 3 + i) * 0.05;
+          const radius = enemy.radius * (i % 2 === 0 ? 1.05 : 0.76);
+          const px = Math.cos(theta) * radius;
+          const py = Math.sin(theta) * radius;
+          if (i === 0) {
+            ctx.moveTo(px, py);
+          } else {
+            ctx.lineTo(px, py);
+          }
+        }
+        ctx.closePath();
+        ctx.fill();
+      } else if (enemy.type === "dart") {
+        ctx.fillStyle = enemy.color;
+        ctx.beginPath();
+        ctx.moveTo(enemy.radius * 1.3, 0);
+        ctx.lineTo(-enemy.radius * 0.9, enemy.radius * 0.8);
+        ctx.lineTo(-enemy.radius * 0.5, 0);
+        ctx.lineTo(-enemy.radius * 0.9, -enemy.radius * 0.8);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        ctx.fillStyle = enemy.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, enemy.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = "#140c1f";
+      ctx.beginPath();
+      ctx.arc(enemy.radius * 0.18, -enemy.radius * 0.14, Math.max(2, enemy.radius * 0.18), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    function renderPlay() {
+      renderBackground(world.time);
+      const offsetX = shake > 0 ? rand(-shake, shake) : 0;
+      const offsetY = shake > 0 ? rand(-shake, shake) : 0;
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+
+      for (let i = 0; i < world.ripples.length; i += 1) {
+        const ripple = world.ripples[i];
+        const t = ripple.age / ripple.life;
+        ctx.strokeStyle = ripple.color.startsWith("#")
+          ? hexToRgba(ripple.color, 0.34 * (1 - t))
+          : ripple.color;
+        ctx.lineWidth = 2 + t * 8;
+        ctx.beginPath();
+        ctx.arc(ripple.x, ripple.y, ripple.radius * (0.25 + t), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      for (let i = 0; i < world.wires.length; i += 1) {
+        drawWire(world.wires[i]);
+      }
+
+      for (let i = 0; i < world.enemies.length; i += 1) {
+        drawEnemy(world.enemies[i], world.time);
+      }
+
+      drawPlayer(world.player, world.time);
+
+      for (let i = 0; i < world.particles.length; i += 1) {
+        const particle = world.particles[i];
+        const alpha = clamp(particle.life / particle.maxLife, 0, 1);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = particle.color;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      for (let i = 0; i < world.pops.length; i += 1) {
+        const pop = world.pops[i];
+        const alpha = 1 - pop.age / pop.life;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = pop.color;
+        ctx.font = '700 20px "Avenir Next Condensed", "Arial Narrow", sans-serif';
+        ctx.textAlign = "center";
+        ctx.fillText(pop.text, pop.x, pop.y);
+      }
+      ctx.globalAlpha = 1;
+
+      if (!firstWireCast) {
+        ctx.fillStyle = "rgba(246, 233, 212, 0.85)";
+        ctx.font = '700 22px "Avenir Next Condensed", "Arial Narrow", sans-serif';
+        ctx.textAlign = "center";
+        ctx.fillText("Hold Space while moving to draw a wire.", screen.width * 0.5, screen.height * 0.26);
+        ctx.fillStyle = "rgba(201, 189, 168, 0.8)";
+        ctx.font = '500 15px "Avenir Next Condensed", "Arial Narrow", sans-serif';
+        ctx.fillText("Release it to make the line lethal.", screen.width * 0.5, screen.height * 0.26 + 26);
+      }
+
+      if (flash > 0) {
+        ctx.fillStyle = `rgba(255, 248, 235, ${flash * 0.16})`;
+        ctx.fillRect(-offsetX, -offsetY, screen.width, screen.height);
+      }
+
+      ctx.restore();
+    }
+
+    function renderTitleBackdrop(time) {
+      renderBackground(time);
+      ctx.save();
+      const centerX = screen.width * 0.5;
+      const centerY = screen.height * 0.54;
+      for (let i = 0; i < 4; i += 1) {
+        const radius = 90 + i * 38 + Math.sin(time * 0.6 + i) * 10;
+        ctx.strokeStyle = `rgba(${i % 2 === 0 ? "143, 247, 213" : "255, 226, 138"}, ${0.16 - i * 0.025})`;
+        ctx.lineWidth = 6 - i;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, time * 0.18 + i, time * 0.18 + i + Math.PI * 1.32);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function loop(timestamp) {
+      const dt = Math.min((timestamp - lastTime) / 1000 || 0, 0.033);
+      lastTime = timestamp;
+
+      if (state === "play" && world) {
+        updatePlay(dt);
+        renderPlay();
+      } else {
+        renderTitleBackdrop((timestamp || 0) / 1000);
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    document.addEventListener("keydown", (event) => {
+      if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) {
+        event.preventDefault();
+      }
+      input.add(event.code);
+      if (event.code === "Enter") {
+        if (state === "title" || state === "gameover") {
+          startGame();
+        }
+      }
+      if (event.code === "Escape" && state !== "title") {
+        if (state === "play" && world && world.player.weaving) {
+          tryReleaseWire();
+        }
+        goToTitle();
+      }
+    });
+
+    document.addEventListener("keyup", (event) => {
+      input.delete(event.code);
+      if (event.code === "Space" && state === "play" && world && world.player.weaving) {
+        tryReleaseWire();
+      }
+    });
+
+    window.addEventListener("pointerdown", ensureAudio);
+    window.addEventListener("resize", resize);
+
+    resize();
+    updatePanel();
+    updateHud();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

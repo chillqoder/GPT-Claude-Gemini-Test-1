@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: #0F1117;
+  --color-foreground: #F1F5F9;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Georgia', 'Newsreader', ui-serif, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+body {
+  background: #0F1117;
+  color: #F1F5F9;
+  font-family: var(--font-sans);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0F1117;
+}
+::-webkit-scrollbar-thumb {
+  background: #2D3748;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #64748B;
+}
+
+/* Range input */
+input[type="range"] {
+  -webkit-appearance: none;
+  height: 4px;
+  background: #2D3748;
+  border-radius: 2px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3B82F6;
+  cursor: pointer;
+}
+
+/* CSS variables for theming */
+:root {
+  --pr-bg: #0F1117;
+  --pr-surface: #1A1D27;
+  --pr-border: #2D3748;
+  --pr-text: #F1F5F9;
+  --pr-muted: #64748B;
+}
+
+.light-mode {
+  --pr-bg: #F8FAFC;
+  --pr-surface: #FFFFFF;
+  --pr-border: #E2E8F0;
+  --pr-text: #1E293B;
+  --pr-muted: #94A3B8;
+}
